@@ -6,6 +6,22 @@ The Bank Fraud Detection System is a machine-learning-based application that ide
 
 The application provides a banking simulation where users can create accounts, preview transactions, check fraud risk, confirm or cancel transactions, and review transaction history.
 
+## Dataset
+
+This project uses the **PaySim Mobile Money Transaction Dataset** for training and evaluating the bank fraud detection model.
+
+- **Dataset source:** [PaySim Data — Kaggle](https://www.kaggle.com/datasets/mtalaltariq/paysim-data)
+- **Data type:** Simulated financial transactions, including legitimate and fraudulent transactions.
+- **Purpose:** Used to train and evaluate the XGBoost fraud detection model.
+
+### Download and Setup
+
+1. Download the dataset from the Kaggle link above.
+2. Extract the downloaded file.
+3. Place the dataset at `data/raw/data.csv` in the project directory, ensuring the filename matches what the training or data-loading code expects.
+
+**Note:** The raw dataset is not included in this repository. Please download it directly from Kaggle. The trained model and evaluation results are available in the `models/` directory.
+
 ## Objectives
 
 - Detect potentially fraudulent financial transactions using machine learning.
