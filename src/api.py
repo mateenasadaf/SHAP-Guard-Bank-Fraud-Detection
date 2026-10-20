@@ -25,7 +25,7 @@ from src.database import (
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_DIR = BASE_DIR / "models_v2"  # Newly trained 9-feature model; keep the old models/ folder as backup
+MODEL_DIR = BASE_DIR / "models"  # Newly trained 9-feature model; keep the old models/ folder as backup
 MODEL_PATH = MODEL_DIR / "xgboost_fraud_model.json"
 METADATA_PATH = MODEL_DIR / "metadata.json"
 
