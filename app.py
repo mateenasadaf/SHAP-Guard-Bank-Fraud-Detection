@@ -2,7 +2,12 @@ import requests
 import pandas as pd
 import streamlit as st
 
-API_URL = "http://127.0.0.1:8000"
+import os
+
+API_URL = os.getenv(
+    "API_URL",
+    "http://127.0.0.1:8000"
+).rstrip("/")
 REQUEST_TIMEOUT = 15
 
 
