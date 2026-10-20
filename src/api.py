@@ -1,12 +1,13 @@
 from pathlib import Path
 import json
 import sqlite3
+import uuid
 
 import pandas as pd
 import xgboost as xgb
 import shap
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from pydantic import BaseModel, Field
 
 from src.database import (
@@ -89,6 +90,17 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     initialize_database()
+
+
+def require_session(x_demo_session: str = Header(..., alias="X-Demo-Session")) -> str:
+    """Require a well-formed UUID demo-session identifier."""
+    try:
+        return str(uuid.UUID(x_demo_session))
+    except (ValueError, TypeError, AttributeError):
+        raise HTTPException(
+            status_code=400,
+            detail="Missing or invalid X-Demo-Session header. Refresh the app to create a new session.",
+        )
 
 
 # ============================================================
@@ -207,18 +219,19 @@ def health():
 # ============================================================
 
 @app.get("/accounts")
-def list_accounts():
-    accounts = get_accounts()
+def list_accounts(owner_session_id: str = Depends(require_session)):
+    accounts = get_accounts(owner_session_id)
     return {"count": len(accounts), "accounts": accounts}
 
 
 @app.post("/accounts", status_code=201)
-def add_account(account: AccountCreate):
+def add_account(account: AccountCreate, owner_session_id: str = Depends(require_session)):
     try:
         created_account = create_account(
             account_id=account.account_id,
             name=account.name,
             starting_balance=account.starting_balance,
+            owner_session_id=owner_session_id,
         )
         return {
             "message": "Demo account created successfully",
@@ -234,8 +247,8 @@ def add_account(account: AccountCreate):
 
 
 @app.get("/accounts/{account_id}")
-def account_details(account_id: str):
-    account = get_account(account_id)
+def account_details(account_id: str, owner_session_id: str = Depends(require_session)):
+    account = get_account(account_id, owner_session_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Demo account not found.")
     return {"account": account}
@@ -246,7 +259,7 @@ def account_details(account_id: str):
 # ============================================================
 
 @app.post("/predict")
-def predict(transaction: Transaction):
+def predict(transaction: Transaction, owner_session_id: str = Depends(require_session)):
     try:
         _, probability, prediction = score_transaction(transaction)
 
@@ -255,6 +268,7 @@ def predict(transaction: Transaction):
             probability=probability,
             prediction=prediction,
             threshold=THRESHOLD,
+            owner_session_id=owner_session_id,
         )
 
         return {
@@ -283,7 +297,7 @@ def predict(transaction: Transaction):
 # ============================================================
 
 @app.post("/transfers/preview")
-def preview_transfer(request: TransferPreview):
+def preview_transfer(request: TransferPreview, owner_session_id: str = Depends(require_session)):
     sender_id = request.sender_account_id.strip().upper()
     receiver_id = request.receiver_account_id.strip().upper()
 
@@ -293,8 +307,8 @@ def preview_transfer(request: TransferPreview):
             detail="Sender and receiver must be different accounts.",
         )
 
-    sender = get_account(sender_id)
-    receiver = get_account(receiver_id)
+    sender = get_account(sender_id, owner_session_id)
+    receiver = get_account(receiver_id, owner_session_id)
 
     if sender is None:
         raise HTTPException(
@@ -344,6 +358,7 @@ def preview_transfer(request: TransferPreview):
             sender_account_id=sender_id,
             receiver_account_id=receiver_id,
             transaction_status="PENDING",
+            owner_session_id=owner_session_id,
         )
 
         return {
@@ -379,11 +394,12 @@ def preview_transfer(request: TransferPreview):
 # ============================================================
 
 @app.post("/transfers/{transaction_id}/confirm")
-def confirm_transfer(transaction_id: int, decision: TransferDecision):
+def confirm_transfer(transaction_id: int, decision: TransferDecision, owner_session_id: str = Depends(require_session)):
     try:
         status, details = finalize_transfer(
             transaction_id=transaction_id,
             approve=decision.approve,
+            owner_session_id=owner_session_id,
             override_fraud=decision.override_fraud,
         )
 
@@ -464,7 +480,7 @@ def confirm_transfer(transaction_id: int, decision: TransferDecision):
 # ============================================================
 
 @app.post("/account-transactions/preview")
-def preview_account_transaction(request: AccountTransactionPreview):
+def preview_account_transaction(request: AccountTransactionPreview, owner_session_id: str = Depends(require_session)):
     account_id = request.account_id.strip().upper()
     transaction_type = request.transaction_type.strip().upper()
 
@@ -478,7 +494,7 @@ def preview_account_transaction(request: AccountTransactionPreview):
             ),
         )
 
-    account = get_account(account_id)
+    account = get_account(account_id, owner_session_id)
     if account is None:
         raise HTTPException(
             status_code=404,
@@ -529,6 +545,7 @@ def preview_account_transaction(request: AccountTransactionPreview):
             sender_account_id=sender_id,
             receiver_account_id=receiver_id,
             transaction_status="PENDING",
+            owner_session_id=owner_session_id,
         )
 
         operation_name = {
@@ -569,11 +586,12 @@ def preview_account_transaction(request: AccountTransactionPreview):
 
 
 @app.post("/account-transactions/{transaction_id}/confirm")
-def confirm_account_transaction(transaction_id: int, decision: TransferDecision):
+def confirm_account_transaction(transaction_id: int, decision: TransferDecision, owner_session_id: str = Depends(require_session)):
     try:
         status, details = finalize_account_transaction(
             transaction_id=transaction_id,
             approve=decision.approve,
+            owner_session_id=owner_session_id,
             override_fraud=decision.override_fraud,
         )
 
@@ -633,7 +651,7 @@ def confirm_account_transaction(transaction_id: int, decision: TransferDecision)
 # ============================================================
 
 @app.post("/explain")
-def explain_transaction(transaction: Transaction):
+def explain_transaction(transaction: Transaction, owner_session_id: str = Depends(require_session)):
     try:
         features, probability, prediction = score_transaction(transaction)
         shap_output = explainer.shap_values(features)
@@ -767,9 +785,10 @@ def _shap_history_summary(transaction: dict) -> str:
 def transaction_history(
     limit: int = Query(default=100, ge=1, le=1000),
     include_explanations: bool = Query(default=False),
+    owner_session_id: str = Depends(require_session),
 ):
     try:
-        transactions = get_recent_transactions(limit)
+        transactions = get_recent_transactions(limit, owner_session_id=owner_session_id)
         if include_explanations:
             # Calculate explanations only for the history-table request, not for
             # every dashboard/alert refresh. Label is explicit: current model.

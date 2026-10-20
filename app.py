@@ -1,13 +1,19 @@
 import requests
 import pandas as pd
 import streamlit as st
-
+import uuid
 import os
 
 API_URL = os.getenv(
     "API_URL",
     "http://127.0.0.1:8000"
 ).rstrip("/")
+if "visitor_session_id" not in st.session_state:
+    st.session_state["visitor_session_id"] = str(uuid.uuid4())
+
+API_HEADERS = {
+    "X-Demo-Session": st.session_state["visitor_session_id"]
+}
 REQUEST_TIMEOUT = 15
 
 
@@ -46,7 +52,11 @@ def api_error_message(error):
 
 
 def get_accounts():
-    response = requests.get(f"{API_URL}/accounts", timeout=REQUEST_TIMEOUT)
+    response = requests.get(
+    f"{API_URL}/accounts",
+    headers=API_HEADERS,
+    timeout=REQUEST_TIMEOUT
+)
     response.raise_for_status()
     return response.json().get("accounts", [])
 
@@ -55,6 +65,7 @@ def get_transactions(limit=100, include_explanations=False):
     response = requests.get(
         f"{API_URL}/transactions",
         params={"limit": limit, "include_explanations": include_explanations},
+        headers=API_HEADERS,
         timeout=REQUEST_TIMEOUT
     )
     response.raise_for_status()
@@ -96,7 +107,7 @@ if "last_explanation" not in st.session_state:
 
 st.header("1. Demo Accounts")
 st.caption(
-    "Create accounts for this simulation. Account IDs must be unique. "
+    "Create accounts for this simulation. Account IDs must be unique within your session. "
     "Starting balances are set only when an account is created."
 )
 
@@ -137,6 +148,7 @@ with st.expander("Create a demo account", expanded=False):
                     create_response = requests.post(
                         f"{API_URL}/accounts",
                         json=account_payload,
+                        headers=API_HEADERS,
                         timeout=REQUEST_TIMEOUT
                     )
                     create_response.raise_for_status()
@@ -259,6 +271,7 @@ else:
                 preview_response = requests.post(
                     f"{API_URL}/transfers/preview",
                     json=preview_payload,
+                    headers=API_HEADERS,
                     timeout=30
                 )
                 preview_response.raise_for_status()
@@ -369,6 +382,7 @@ if pending:
                             "approve": True,
                             "override_fraud": bool(override_fraud)
                         },
+                        headers=API_HEADERS,
                         timeout=30
                     )
                     confirm_response.raise_for_status()
@@ -394,6 +408,7 @@ if pending:
             cancel_response = requests.post(
                 f"{API_URL}/transfers/{pending['transaction_id']}/confirm",
                 json={"approve": False, "override_fraud": False},
+                headers=API_HEADERS,
                 timeout=REQUEST_TIMEOUT
             )
             cancel_response.raise_for_status()
@@ -456,6 +471,7 @@ if pending:
                 explanation_response = requests.post(
                     f"{API_URL}/explain",
                     json=explanation_transaction,
+                    headers=API_HEADERS,
                     timeout=30
                 )
                 explanation_response.raise_for_status()
