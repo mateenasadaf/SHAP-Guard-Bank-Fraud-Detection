@@ -1,0 +1,22 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# Local databases and runtime files
+*.db
+*.sqlite
+*.sqlite3
+
+# Large raw datasets
+data/raw/
+*.csv
+
+# Editor and operating-system files
+.vscode/
+.DS_Store
+Thumbs.db

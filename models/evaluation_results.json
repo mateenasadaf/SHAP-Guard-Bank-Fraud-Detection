@@ -1,0 +1,28 @@
+{
+  "threshold_0_5": {
+    "evaluation": "TEST \u2014 fixed threshold 0.50",
+    "threshold": 0.5,
+    "average_precision_PR_AUC": 0.9510106361049204,
+    "ROC_AUC": 0.9991113726052916,
+    "precision": 0.3168016194331984,
+    "recall": 1.0,
+    "F1": 0.4811683320522675,
+    "TN": 85514,
+    "FP": 2700,
+    "FN": 0,
+    "TP": 1252
+  },
+  "validation_selected_threshold": {
+    "evaluation": "TEST \u2014 threshold selected on validation",
+    "threshold": 0.9770604372024536,
+    "average_precision_PR_AUC": 0.9510106361049204,
+    "ROC_AUC": 0.9991113726052916,
+    "precision": 0.7484197218710493,
+    "recall": 0.9456869009584664,
+    "F1": 0.8355681016231475,
+    "TN": 87816,
+    "FP": 398,
+    "FN": 68,
+    "TP": 1184
+  }
+}
